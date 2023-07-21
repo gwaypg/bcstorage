@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"path/filepath"
 )
 
 func init() {
@@ -10,12 +9,14 @@ func init() {
 }
 
 func downloadHandler(w http.ResponseWriter, r *http.Request) error {
-	fAuth, ok := authFile(r, false)
+	fAuth, ok := authWrite(r)
 	if !ok {
 		return writeMsg(w, 401, "auth failed")
 	}
-	rootPath := _rootPathFlag
-	to := filepath.Join(rootPath, fAuth.space, r.FormValue("file"))
+	to, ok := validHttpFilePath(fAuth.spaceName, r.FormValue("file"))
+	if !ok {
+		return writeMsg(w, 404, "file not found")
+	}
 	http.ServeFile(w, r, to)
 	return nil
 }

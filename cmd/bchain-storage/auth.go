@@ -24,6 +24,13 @@ const (
 const adminUser = "admin"
 const adminDefaultPwd = "d41d8cd98f00b204e9800998ecf8427e"
 
+var (
+	_userMap = UserMap{
+		Auth:  map[string]UserAuth{},
+		Space: map[string]UserSpace{},
+	}
+)
+
 func genPasswd() string {
 	token := [16]byte(uuid.New())
 	if time.Now().UnixNano()%2 == 0 {
@@ -33,16 +40,17 @@ func genPasswd() string {
 }
 
 type UserSpace struct {
-	Name string
-	Attr int32 // TODO
-	Size int64 // TODO
-	Used int64 // TODO
+	Name    string
+	Attr    int32 // TODO
+	Size    int64 // TODO
+	Used    int64 // TODO
+	Private bool  // TODO
 }
 
 type UserAuth struct {
 	User      string
 	Passwd    string
-	SpaceName string // TODO: user space
+	SpaceName string
 }
 
 type UserMap struct {
@@ -70,15 +78,22 @@ func (u *UserMap) AddSpace(space UserSpace) error {
 	}
 	return nil
 }
-func (u *UserMap) GetSpace(name string) (UserSpace, error) {
+func (u *UserMap) GetSpace(name string) (UserSpace, bool) {
 	u.lk.Lock()
 	defer u.lk.Unlock()
 	space, ok := u.Space[name]
 	if !ok {
 		// TODO: fetch from leveldb
-		return UserSpace{}, errors.ErrNoData.As(name)
+		return UserSpace{}, false
 	}
-	return space, nil
+	return space, true
+}
+func (u *UserMap) SpacePath(spaceName string) (string, error) {
+	space, ok := u.GetSpace(spaceName)
+	if !ok {
+		return "", errors.ErrNoData.As(spaceName)
+	}
+	return filepath.Join(_rootPathFlag, space.Name), nil
 }
 func (u *UserMap) AddSpaceUsed(name string, val int64) error {
 	u.lk.Lock()
@@ -99,13 +114,6 @@ func (u *UserMap) UpdateAuth(auth UserAuth) error {
 	u.Auth[auth.User] = auth
 	return PutLevelDB(fmt.Sprintf(_leveldb_prefix_user, auth.User), &auth)
 }
-
-var (
-	_userMap = UserMap{
-		Auth:  map[string]UserAuth{},
-		Space: map[string]UserSpace{},
-	}
-)
 
 func initDaemonAuth() {
 	userPrefixLen := len("_user.")
@@ -143,18 +151,23 @@ func initDaemonAuth() {
 	}
 }
 
-func validHttpFilePath(file string) bool {
+func validHttpFilePath(spaceName, file string) (string, bool) {
+	space, ok := _userMap.GetSpace(spaceName)
+	if !ok {
+		return "", false
+	}
 	rootPath := _rootPathFlag
-	tPath, err := filepath.Abs(filepath.Join(rootPath, file))
+	absPath, err := filepath.Abs(filepath.Join(rootPath, space.Name, file))
 	if err != nil {
-		return false
+		return "", false
 	}
-	if !strings.HasPrefix(tPath, rootPath) {
-		return false
+	if !strings.HasPrefix(absPath, filepath.Join(rootPath, space.Name)) {
+		return "", false
 	}
-	return true
+	return absPath, true
 }
-func authFile(r *http.Request, write bool) (FileToken, bool) {
+
+func authWrite(r *http.Request) (FileToken, bool) {
 	username, passwd, ok := r.BasicAuth()
 	if !ok {
 		log.Infof("no BasicAuth:%s", r.RemoteAddr)
@@ -166,24 +179,14 @@ func authFile(r *http.Request, write bool) (FileToken, bool) {
 		return FileToken{}, false
 	}
 	file := r.FormValue("file")
-	if !authRW(username, passwd, file) {
+	if _, ok := validHttpFilePath(fAuth.spaceName, file); !ok {
 		log.Infof("VerifyRW failed:%s", r.RemoteAddr)
 		return FileToken{}, false
 	}
 	return fAuth, true
 }
 
-func authRW(user, auth, path string) bool {
-	if !validHttpFilePath(path) {
-		return false
-	}
-	if !strings.Contains(path, user) {
-		return false
-	}
-	return true
-}
-
-func authBase(r *http.Request) (UserAuth, bool) {
+func authAdmin(r *http.Request) (UserAuth, bool) {
 	// auth
 	username, passwd, ok := r.BasicAuth()
 	if !ok {

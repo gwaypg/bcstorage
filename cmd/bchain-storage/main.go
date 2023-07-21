@@ -52,12 +52,12 @@ func main() {
 			},
 			&cli.StringFlag{
 				Name:  "user",
-				Usage: "user for operation",
+				Usage: "system admin user for operation",
 				Value: "admin",
 			},
 			&cli.StringFlag{
 				Name:  "passwd",
-				Usage: "passwd for operation",
+				Usage: "passwd for system admin",
 				Value: "d41d8cd98f00b204e9800998ecf8427e",
 			},
 		},

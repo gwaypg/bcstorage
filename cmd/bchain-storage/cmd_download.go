@@ -44,18 +44,18 @@ var downloadCmd = &cli.Command{
 			go func() {
 				// TODO: process the download
 				ctx := cctx.Context
-				sid := remotePath
+				authFile := remotePath
 				ac := client.NewAuthClient(_authApiFlag,
 					cctx.String("user"),
 					cctx.String("passwd"),
 				)
-				newToken, err := ac.NewFileToken(ctx, sid)
+				newToken, err := ac.NewFileToken(ctx, authFile)
 				if err != nil {
 					panic(err)
 				}
 				log.Infof("start download: %s->%s", remotePath, localPath)
 				startTime := time.Now()
-				fc := client.NewHttpClient(_httpApiFlag, sid, string(newToken))
+				fc := client.NewHttpClient(_httpApiFlag, authFile, string(newToken))
 				if err := fc.Download(ctx, localPath, remotePath); err != nil {
 					panic(err)
 				}

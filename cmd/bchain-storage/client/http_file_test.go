@@ -12,18 +12,18 @@ import (
 func TestHttpClient(t *testing.T) {
 	ctx := context.TODO()
 	auth := NewAuthClient("127.0.0.1:1330", "d41d8cd98f00b204e9800998ecf8427e")
-	sid := "s-f01003-10000000000"
-	newToken, err := auth.NewFileToken(ctx, sid)
+	authFile := "s-f01003-10000000000"
+	newToken, err := auth.NewFileToken(ctx, authFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll("./test")
 
-	fc := NewHttpClient("127.0.0.1:1331", sid, string(newToken))
-	if err := fc.DeleteSector(ctx, sid, "all"); err != nil {
+	fc := NewHttpClient("127.0.0.1:1331", authFile, string(newToken))
+	if err := fc.DeleteSector(ctx, authFile, "all"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := fc.FileStat(ctx, filepath.Join("sealed", sid)); err != nil {
+	if _, err := fc.FileStat(ctx, filepath.Join("sealed", authFile)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -32,14 +32,14 @@ func TestHttpClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	n, err := fc.upload(ctx, localpath, filepath.Join("sealed", sid), false)
+	n, err := fc.upload(ctx, localpath, filepath.Join("sealed", authFile), false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if n != localStat.Size() {
 		t.Fatalf("expect %d==%d", n, localStat.Size())
 	}
-	n, err = fc.upload(ctx, "/usr/local/go/bin/go", filepath.Join("sealed", sid), true)
+	n, err = fc.upload(ctx, "/usr/local/go/bin/go", filepath.Join("sealed", authFile), true)
 	if err != nil {
 		t.Fatal(err)
 	}

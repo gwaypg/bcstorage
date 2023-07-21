@@ -17,15 +17,15 @@ func TestAuthClient(t *testing.T) {
 		t.Fatal(string(output))
 	}
 
-	sid := "s-f01003-0"
-	newFileToken, err := auth.NewFileToken(ctx, sid)
+	authFile := "s-f01003-0"
+	newFileToken, err := auth.NewFileToken(ctx, authFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(newFileToken) == 0 {
 		t.Fatal("token not found")
 	}
-	if _, err := auth.DeleteFileToken(ctx, sid); err != nil {
+	if _, err := auth.DeleteFileToken(ctx, authFile); err != nil {
 		t.Fatal(err)
 	}
 }

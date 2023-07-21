@@ -14,7 +14,7 @@ func init() {
 }
 
 func truncateHandler(w http.ResponseWriter, r *http.Request) error {
-	fAuth, ok := authFile(r, true)
+	fAuth, ok := authWrite(r)
 	if !ok {
 		return writeMsg(w, 401, "auth failed")
 	}
@@ -24,8 +24,11 @@ func truncateHandler(w http.ResponseWriter, r *http.Request) error {
 		return writeMsg(w, 403, "file size failed")
 	}
 
-	rootPath := _rootPathFlag
-	path := filepath.Join(rootPath, fAuth.space, r.FormValue("file"))
+	path, ok := validHttpFilePath(fAuth.spaceName, r.FormValue("file"))
+	if !ok {
+		return writeMsg(w, 404, "file not found")
+	}
+
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return errors.As(err, path)
 	}

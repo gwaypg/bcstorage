@@ -133,9 +133,9 @@ func (auth *AuthClient) ChangeAuth(ctx context.Context) ([]byte, error) {
 	return nil, errors.Parse(string(respBody)).As(resp.StatusCode)
 }
 
-func (auth *AuthClient) NewFileToken(ctx context.Context, sid string) ([]byte, error) {
+func (auth *AuthClient) NewFileToken(ctx context.Context, authFile string) ([]byte, error) {
 	params := url.Values{}
-	params.Add("sid", sid)
+	params.Add("file", authFile)
 	req, err := http.NewRequestWithContext(ctx, "GET", "https://"+auth.Host+"/sys/file/token?"+params.Encode(), nil)
 	if err != nil {
 		return nil, errors.As(err)
@@ -158,9 +158,9 @@ func (auth *AuthClient) NewFileToken(ctx context.Context, sid string) ([]byte, e
 	return respBody, nil
 }
 
-func (auth *AuthClient) DelayFileToken(ctx context.Context, sid string) ([]byte, error) {
+func (auth *AuthClient) DelayFileToken(ctx context.Context, authFile string) ([]byte, error) {
 	params := url.Values{}
-	params.Add("sid", sid)
+	params.Add("file", authFile)
 	req, err := http.NewRequestWithContext(ctx, "POST", "https://"+auth.Host+"/sys/file/token", strings.NewReader(params.Encode()))
 	if err != nil {
 		return nil, errors.As(err)
@@ -183,9 +183,9 @@ func (auth *AuthClient) DelayFileToken(ctx context.Context, sid string) ([]byte,
 	return respBody, nil
 }
 
-func (auth *AuthClient) DeleteFileToken(ctx context.Context, sid string) ([]byte, error) {
+func (auth *AuthClient) DeleteFileToken(ctx context.Context, authFile string) ([]byte, error) {
 	params := url.Values{}
-	params.Add("sid", sid)
+	params.Add("file", authFile)
 	req, err := http.NewRequestWithContext(ctx, "DELETE", "https://"+auth.Host+"/sys/file/token?"+params.Encode(), nil)
 	if err != nil {
 		return nil, errors.As(err)

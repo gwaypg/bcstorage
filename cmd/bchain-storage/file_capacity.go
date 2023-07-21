@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"path/filepath"
 	"syscall"
 
 	"github.com/gwaylib/errors"
@@ -13,13 +12,16 @@ func init() {
 }
 
 func capacityHandler(w http.ResponseWriter, r *http.Request) error {
-	fAuth, ok := authFile(r, false)
+	fAuth, ok := authWrite(r)
 	if !ok {
 		return writeMsg(w, 401, "auth failed")
 	}
 
 	// implement the df -h
-	root := filepath.Join(_rootPathFlag, fAuth.space)
+	root, err := _userMap.SpacePath(fAuth.spaceName)
+	if err != nil {
+		return writeMsg(w, 404, "space not found")
+	}
 	fs := syscall.Statfs_t{}
 	if err := syscall.Statfs(root, &fs); err != nil {
 		return errors.As(err, root)

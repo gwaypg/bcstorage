@@ -79,13 +79,13 @@ func (fInfo *FileInfo) Sys() interface{} {
 }
 
 type HttpClient struct {
-	Host  string
-	Sid   string
-	Token string
+	Host      string
+	AuthPath  string
+	AuthToken string
 }
 
-func NewHttpClient(host, sid, token string) *HttpClient {
-	return &HttpClient{Host: host, Sid: sid, Token: token}
+func NewHttpClient(host, authPath, authToken string) *HttpClient {
+	return &HttpClient{Host: host, AuthPath: authPath, AuthToken: authToken}
 }
 
 func (f *HttpClient) Capacity(ctx context.Context) (*syscall.Statfs_t, error) {
@@ -94,7 +94,7 @@ func (f *HttpClient) Capacity(ctx context.Context) (*syscall.Statfs_t, error) {
 	if err != nil {
 		return nil, errors.As(err)
 	}
-	req.SetBasicAuth(f.Sid, f.Token)
+	req.SetBasicAuth(f.AuthPath, f.AuthToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, errors.As(err)
@@ -123,7 +123,7 @@ func (f *HttpClient) Move(ctx context.Context, remotePath, newRemotePath string)
 	if err != nil {
 		return errors.As(err, remotePath)
 	}
-	req.SetBasicAuth(f.Sid, f.Token)
+	req.SetBasicAuth(f.AuthPath, f.AuthToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return errors.As(err, remotePath)
@@ -145,7 +145,7 @@ func (f *HttpClient) Delete(ctx context.Context, remotePath string) error {
 	if err != nil {
 		return errors.As(err, remotePath)
 	}
-	req.SetBasicAuth(f.Sid, f.Token)
+	req.SetBasicAuth(f.AuthPath, f.AuthToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return errors.As(err, remotePath)
@@ -169,7 +169,7 @@ func (f *HttpClient) Truncate(ctx context.Context, remotePath string, size int64
 	if err != nil {
 		return errors.As(err, remotePath)
 	}
-	req.SetBasicAuth(f.Sid, f.Token)
+	req.SetBasicAuth(f.AuthPath, f.AuthToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return errors.As(err, remotePath)
@@ -192,7 +192,7 @@ func (f *HttpClient) FileStat(ctx context.Context, remotePath string) (os.FileIn
 	if err != nil {
 		return nil, errors.As(err)
 	}
-	req.SetBasicAuth(f.Sid, f.Token)
+	req.SetBasicAuth(f.AuthPath, f.AuthToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, errors.As(err)
@@ -263,7 +263,7 @@ func (f *HttpClient) upload(ctx context.Context, localPath, remotePath string, a
 	if err != nil {
 		return 0, errors.As(err)
 	}
-	req.SetBasicAuth(f.Sid, f.Token)
+	req.SetBasicAuth(f.AuthPath, f.AuthToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return 0, errors.As(err)
@@ -348,7 +348,7 @@ func (f *HttpClient) List(ctx context.Context, remotePath string) ([]utils.Serve
 	if err != nil {
 		return nil, errors.As(err, remotePath)
 	}
-	req.SetBasicAuth(f.Sid, f.Token)
+	req.SetBasicAuth(f.AuthPath, f.AuthToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, errors.As(err, remotePath)
@@ -369,42 +369,6 @@ func (f *HttpClient) List(ctx context.Context, remotePath string) ([]utils.Serve
 		return nil, &os.PathError{"List", remotePath, _errNotExist}
 	}
 	return nil, errors.Parse(string(respBody)).As(resp.StatusCode)
-}
-
-func (f *HttpClient) DeleteSector(ctx context.Context, sid, kind string) error {
-	if kind == "cache" || kind == "all" {
-		files, err := f.List(ctx, filepath.Join("cache", sid))
-		if err != nil {
-			if !os.IsNotExist(err) {
-				return errors.As(err)
-			}
-			// continue
-		}
-		for _, file := range files {
-			if file.FileName == "." {
-				continue
-			}
-			if file.IsDirFile {
-				return errors.New("new dir expected").As(sid, file.FileName)
-			}
-			if err := f.Delete(ctx, filepath.Join("cache", sid, file.FileName)); err != nil {
-				return errors.As(err)
-			}
-		}
-	}
-
-	if kind == "sealed" || kind == "all" {
-		if err := f.Delete(ctx, filepath.Join("sealed", sid)); err != nil {
-			return errors.As(err)
-		}
-	}
-
-	if kind == "unsealed" || kind == "all" {
-		if err := f.Delete(ctx, filepath.Join("unsealed", sid)); err != nil {
-			return errors.As(err)
-		}
-	}
-	return nil
 }
 
 // TODO: erasure coding
@@ -432,7 +396,7 @@ func (f *HttpClient) download(ctx context.Context, localPath, remotePath string)
 	if err != nil {
 		return 0, errors.As(err)
 	}
-	req.SetBasicAuth(f.Sid, f.Token)
+	req.SetBasicAuth(f.AuthPath, f.AuthToken)
 	req.Header.Set("Range", fmt.Sprintf("bytes=%d-", pos))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -498,7 +462,6 @@ func (f *HttpClient) Download(ctx context.Context, localPath, remotePath string)
 		if _, err := f.download(ctx, newLocalPath, newRemotePath); err != nil {
 			return errors.As(err, newLocalPath, newRemotePath)
 		}
-
 	}
 	return nil
 }
@@ -507,34 +470,32 @@ func (f *HttpClient) Download(ctx context.Context, localPath, remotePath string)
 //
 // implement os.File interface
 type HttpFile struct {
-	ctx        context.Context
-	client     *HttpClient
-	remotePath string
+	ctx    context.Context
+	client *HttpClient
 
 	lock       sync.Mutex
 	seekOffset int64
 }
 
-func OpenHttpFile(ctx context.Context, host, remotePath, sid, token string) *HttpFile {
+func OpenHttpFile(ctx context.Context, host, authPath, authToken string) *HttpFile {
 	return &HttpFile{
-		ctx:        ctx,
-		client:     NewHttpClient(host, sid, token),
-		remotePath: remotePath,
+		ctx:    ctx,
+		client: NewHttpClient(host, authPath, authToken),
 	}
 }
 
 func (f *HttpFile) Name() string {
-	return f.remotePath
+	return f.client.AuthPath
 }
 
 func (f *HttpFile) readRemote(b []byte, off int64) (int, error) {
 	params := url.Values{}
-	params.Add("file", f.remotePath)
+	params.Add("file", f.client.AuthPath)
 	req, err := http.NewRequestWithContext(f.ctx, "GET", "http://"+f.client.Host+"/file/download?"+params.Encode(), nil)
 	if err != nil {
 		return 0, errors.As(err)
 	}
-	req.SetBasicAuth(f.client.Sid, f.client.Token)
+	req.SetBasicAuth(f.client.AuthPath, f.client.AuthToken)
 	req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", off, off+int64(len(b))))
 	log.Infof("Range:%s", fmt.Sprintf("bytes=%d-%d", off, off+int64(len(b))))
 	resp, err := http.DefaultClient.Do(req)
@@ -548,7 +509,7 @@ func (f *HttpFile) readRemote(b []byte, off int64) (int, error) {
 	case 200, 206:
 		// continue
 	case 404:
-		return 0, &os.PathError{"readRemote", f.remotePath, _errNotExist}
+		return 0, &os.PathError{"readRemote", f.client.AuthPath, _errNotExist}
 	case 416:
 		return 0, io.EOF
 	default:
@@ -565,13 +526,13 @@ func (f *HttpFile) readRemote(b []byte, off int64) (int, error) {
 func (f *HttpFile) writeRemote(b []byte, off int64) (int64, error) {
 	r := bytes.NewReader(b)
 	params := url.Values{}
-	params.Add("file", f.remotePath)
+	params.Add("file", f.client.AuthPath)
 	params.Add("pos", strconv.FormatInt(off, 10))
 	req, err := http.NewRequestWithContext(f.ctx, "POST", "http://"+f.client.Host+"/file/upload?"+params.Encode(), r)
 	if err != nil {
 		return 0, errors.As(err)
 	}
-	req.SetBasicAuth(f.client.Sid, f.client.Token)
+	req.SetBasicAuth(f.client.AuthPath, f.client.AuthToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return 0, errors.As(err)
@@ -582,7 +543,7 @@ func (f *HttpFile) writeRemote(b []byte, off int64) (int64, error) {
 	case 200, 206:
 		// continue
 	case 404:
-		return 0, &os.PathError{"writeRemote", f.remotePath, _errNotExist}
+		return 0, &os.PathError{"writeRemote", f.client.AuthPath, _errNotExist}
 	default:
 		respBody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
@@ -634,7 +595,7 @@ func (f *HttpFile) Read(b []byte) (n int, err error) {
 }
 func (f *HttpFile) ReadAt(b []byte, off int64) (n int, err error) {
 	if off < 0 {
-		return 0, &os.PathError{"readat", f.remotePath, errors.New("negative offset")}
+		return 0, &os.PathError{"readat", f.client.AuthPath, errors.New("negative offset")}
 	}
 
 	f.lock.Lock()
@@ -657,8 +618,8 @@ func (f *HttpFile) Write(b []byte) (n int, err error) {
 }
 
 func (f *HttpFile) Stat() (os.FileInfo, error) {
-	return f.client.FileStat(f.ctx, f.remotePath)
+	return f.client.FileStat(f.ctx, f.client.AuthPath)
 }
 func (f *HttpFile) Truncate(size int64) error {
-	return f.client.Truncate(f.ctx, f.remotePath, size)
+	return f.client.Truncate(f.ctx, f.client.AuthPath, size)
 }

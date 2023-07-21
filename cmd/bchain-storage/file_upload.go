@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/gwaylib/errors"
 )
@@ -17,16 +18,18 @@ func init() {
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) error {
-	fAuth, ok := authFile(r, true)
+	fAuth, ok := authWrite(r)
 	if !ok {
 		return writeMsg(w, 401, "auth failed")
 	}
 
 	posStr := r.FormValue("pos")
 	pos, _ := strconv.ParseInt(posStr, 10, 64)
-	rootPath := _rootPathFlag
 
-	to := filepath.Join(rootPath, fAuth.space, r.FormValue("file"))
+	to, ok := validHttpFilePath(fAuth.spaceName, r.FormValue("file"))
+	if !ok {
+		return writeMsg(w, 404, "file not found")
+	}
 	dir := filepath.Dir(to)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return writeMsg(w, 500, err.Error())
@@ -36,6 +39,14 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) error {
 		return writeMsg(w, 403, errors.As(err, to).Error())
 	}
 	defer toFile.Close()
+
+	toStat, err := toFile.Stat()
+	if err != nil {
+		return writeMsg(w, 500, errors.As(err).Error())
+	}
+	if time.Now().Sub(toStat.ModTime()) > 24*time.Hour {
+		return writeMsg(w, 403, "file has been locked")
+	}
 
 	if _, err := toFile.Seek(pos, 0); err != nil {
 		return writeMsg(w, 500, errors.As(err).Error())

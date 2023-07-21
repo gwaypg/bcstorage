@@ -11,7 +11,7 @@ func init() {
 }
 
 func tokenHandler(w http.ResponseWriter, r *http.Request) error {
-	auth, ok := authBase(r)
+	auth, ok := authAdmin(r)
 	if !ok {
 		return writeMsg(w, 401, "auth failed")
 	}
@@ -19,24 +19,24 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) error {
 		return writeMsg(w, 401, "can not use 'admin' to manage files")
 	}
 
-	sid := r.FormValue("sid")
-	if len(sid) == 0 {
+	file := r.FormValue("file")
+	if len(file) == 0 {
 		return writeMsg(w, 403, "params failed")
 	}
 
 	if r.Method == "POST" {
-		if !_handler.DelayToken(sid) {
+		if !_handler.DelayToken(file) {
 			return writeMsg(w, 403, "token has expired")
 		}
 		return writeMsg(w, 200, "success")
 	}
 
 	if r.Method == "DELETE" {
-		_handler.DeleteToken(sid)
+		_handler.DeleteToken(file)
 		return writeMsg(w, 200, "success")
 	}
 
 	token := uuid.New().String()
-	_handler.AddToken(auth.SpaceName, sid, token)
+	_handler.AddToken(auth.SpaceName, file, token)
 	return writeMsg(w, 200, token)
 }

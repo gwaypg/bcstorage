@@ -14,8 +14,9 @@ var (
 )
 
 const (
-	_leveldb_prefix_user  = "_user.%s"
-	_leveldb_prefix_space = "_space.%s"
+	_leveldb_prefix_user  = "_user.%s"      // username
+	_leveldb_prefix_space = "_space.%s"     // spacename
+	_leveldb_prefix_del   = "_del.%d.%s.%s" // timestamp.spacename.uuid
 )
 
 func CloseLevelDB() error {

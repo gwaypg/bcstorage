@@ -3,11 +3,11 @@
 # 目录
 - [前言](#前言)
 - [鉴权系统](#鉴权系统)
-    - [BasicAuth](#BasicAuth)
+    - [AdminAuth](#AdminAuth)
     - [TokenAuth](#TokenAuth)
     - [PosixAuth](#PosixAuth)
 - [协议设计](#协议设计)
-    - [BasicAuth协议接口](#BasicAuth协议接口)
+    - [AdminAuth协议接口](#AdminAuth协议接口)
     - [TokenAuth协议接口](#TokenAuth协议接口)
     - [PosixAuth协议接口](#PosixAuth协议接口)
 
@@ -28,24 +28,24 @@
 ## 鉴权系统
 ```
 鉴权系统主要提供了基本安全密钥生成，包括两部分：
-BasicAuth 基本鉴权，需要通过https接入, 在miner机上进行管理。
-TokenAuth 会话授权，通过BasicAuth换取每一次会话授权所需要的token，
+AdminAuth 基本鉴权，需要通过https接入, 在miner机上进行管理。
+TokenAuth 会话授权，通过AdminAuth换取每一次会话授权所需要的token，
           此权限可以通过http进行文件的增、删、查、改功能。 
 PosixAuth(TODO) Posix接口，因Filecoin需要Posix文件访问，
-          此授权通过BasicAuth生成只读的token仅授权给miner、wdpost访问，此访问应受BasicAuth管理。
+          此授权通过AdminAuth生成只读的token仅授权给miner、wdpost访问，此访问应受AdminAuth管理。
 ```
 
-### BasicAuth
+### AdminAuth
 ```
 存储节点初始化时，会有一个初始的密钥。
 
-当存储节点被添加到miner节点时，miner通过初始密钥对存储节点的BasicAuth进行接管；
+当存储节点被添加到miner节点时，miner通过初始密钥对存储节点的AdminAuth进行接管；
 
-miner接管理BasicAuth后，重新重启miner会进行一次密钥变更，
-同时提供了手工变更BasicAuth密钥的功能，防止BasicAuth被强破的可能性。
+miner接管理AdminAuth后，重新重启miner会进行一次密钥变更，
+同时提供了手工变更AdminAuth密钥的功能，防止AdminAuth被强破的可能性。
 
-miner管理存储节点的的BasicAuth时，每一台存储节点会一个唯一不同的密钥，
-不同的存储节点需要不同的BasicAuth访问。
+miner管理存储节点的的AdminAuth时，每一台存储节点会一个唯一不同的密钥，
+不同的存储节点需要不同的AdminAuth访问。
 
 miner需要被视为可信的物理节点，当miner节点不可信时，应及时变更存储节点密码，
 默认情况下重启miner即可变，不需人工介入。
@@ -69,12 +69,12 @@ go-nfs, go-fuse在golang的文件大规模读挂载中测试未通过，因此�
 
 ## 协议设计
 
-### BasicAuth协议接口
+### AdminAuth协议接口
 ```
 指令接口，走https协议
 /check -- 监控zfs磁盘状态，等价于zfs status -x, 只读
 /sys/auth/change?token=d41d8cd98f00b204e9800998ecf8427e 首次使用时须调此接口重置密钥，成功时返回200及新密钥
-/sys/file/token?sid=s-f0xxx-xx -- 获取临时的token锁
+/sys/file/token?file=filepath -- 获取临时的token锁
 ```
 
 
@@ -82,15 +82,14 @@ go-nfs, go-fuse在golang的文件大规模读挂载中测试未通过，因此�
 ```
 文件传输专用，因大文件而走http协议
 /file/capacity -- 获取用户空间容量
-/file/move?sid=s-f0xxx-xx -- 标记扇区为正常, 以便wdpost继续证明该扇区
-/file/delete?sid=s-f0xxx-xx -- 删除扇区，注意，该操作将只是临时删除，7天后永久性删除。
-/file/list?file=xxx -- 列出文件的信息
-/file/download?file=xxx&pos=0&checksum=sha1 -- 文件读取，HEAD请求为读取文件信息，GET为获取文件数据，因大文件而走http，但需要填写BaseAuth的username为s-f0xxx-xx,password为临时的token。checksum当前固定为sha1,其他值不返回hash值, 内置支持文件夹下载与自动断点续传
+/file/move?file=filepath&new=filepath -- 重命名
+/file/delete?filepath=filepath -- 删除路径，TODO:该操作将只是临时删除，7天后永久性删除。
 /file/upload?file=xxx&pos=0&checksum=sha1 -- POST, 文件上传，因大文件而走http，但需要填写BaseAuth的username为s-f0xxx-xx,password为临时的token;checksum当前固定为sha1,其他值不返回hash值, 内置支持文件夹上传与自动断点续传功作
+/file/list?file=xxx -- 列出文件的信息
+/file/download?file=xxx -- 文件读取, 同文件服务器，pos与checksum选填
 ```
 
 ### PosixAuth协议接口
 
 go-nfs, go-fuse在golang的文件大规模读挂载中测试未通过，因此仍采用原生nfs做为挂载接口，但只读。
-
 

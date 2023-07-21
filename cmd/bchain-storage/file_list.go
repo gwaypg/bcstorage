@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path/filepath"
 
 	"github.com/gwaycc/bchain-storage/lib/utils"
 	"github.com/gwaylib/errors"
@@ -16,13 +15,15 @@ func init() {
 }
 
 func statHandler(w http.ResponseWriter, r *http.Request) error {
-	fAuth, ok := authFile(r, false)
+	fAuth, ok := authWrite(r)
 	if !ok {
 		return writeMsg(w, 401, "auth failed")
 	}
 
-	rootPath := _rootPathFlag
-	path := filepath.Join(rootPath, fAuth.space, r.FormValue("file"))
+	path, ok := validHttpFilePath(fAuth.spaceName, r.FormValue("file"))
+	if !ok {
+		return writeMsg(w, 404, "file not found")
+	}
 
 	fStat, err := os.Stat(path)
 	if err != nil {
@@ -40,13 +41,15 @@ func statHandler(w http.ResponseWriter, r *http.Request) error {
 }
 
 func listHandler(w http.ResponseWriter, r *http.Request) error {
-	fAuth, ok := authFile(r, false)
+	fAuth, ok := authWrite(r)
 	if !ok {
 		return writeMsg(w, 401, "auth failed")
 	}
 
-	rootPath := _rootPathFlag
-	path := filepath.Join(rootPath, fAuth.space, r.FormValue("file"))
+	path, ok := validHttpFilePath(fAuth.spaceName, r.FormValue("file"))
+	if !ok {
+		return writeMsg(w, 404, "file not found")
+	}
 
 	fStat, err := os.Stat(path)
 	if err != nil {

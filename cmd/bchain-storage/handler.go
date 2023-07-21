@@ -9,9 +9,10 @@ type CheckCache struct {
 	out        string
 	createTime time.Time
 }
+
 type FileToken struct {
-	space      string
-	token      string
+	spaceName  string
+	file       string
 	createTime time.Time
 }
 
@@ -31,43 +32,43 @@ func (h *HttpHandler) gcToken() {
 		}
 	}
 }
-func (h *HttpHandler) AddToken(space, sid, token string) {
+func (h *HttpHandler) AddToken(spaceName, file, token string) {
 	h.tokenLk.Lock()
 	defer h.tokenLk.Unlock()
-	h.token[sid] = FileToken{
-		space:      space,
-		token:      token,
+	h.token[token] = FileToken{
+		spaceName:  spaceName,
+		file:       file,
 		createTime: time.Now(),
 	}
 }
-func (h *HttpHandler) DelayToken(sid string) bool {
+func (h *HttpHandler) DelayToken(file string) bool {
 	h.tokenLk.Lock()
 	defer h.tokenLk.Unlock()
-	t, ok := h.token[sid]
+	t, ok := h.token[file]
 	if !ok {
 		return false
 	}
 	t.createTime = time.Now()
-	h.token[sid] = t
+	h.token[file] = t
 	return true
 }
 
-func (h *HttpHandler) DeleteToken(sid string) {
+func (h *HttpHandler) DeleteToken(token string) {
 	h.tokenLk.Lock()
 	defer h.tokenLk.Unlock()
-	delete(h.token, sid)
+	delete(h.token, token)
 }
 
-func (h *HttpHandler) VerifyToken(sid, token string) (FileToken, bool) {
+func (h *HttpHandler) VerifyToken(file, token string) (FileToken, bool) {
 	h.tokenLk.Lock()
 	defer h.tokenLk.Unlock()
 	h.gcToken()
 
-	t, ok := h.token[sid]
+	t, ok := h.token[token]
 	if !ok {
 		return FileToken{}, false
 	}
-	if t.token != token {
+	if t.file != file {
 		return FileToken{}, false
 	}
 	return t, true

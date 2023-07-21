@@ -14,7 +14,7 @@ func init() {
 }
 
 func addAuthHandler(w http.ResponseWriter, r *http.Request) error {
-	auth, ok := authBase(r)
+	auth, ok := authAdmin(r)
 	if !ok {
 		return writeMsg(w, 401, "auth failed")
 	}
@@ -27,11 +27,7 @@ func addAuthHandler(w http.ResponseWriter, r *http.Request) error {
 	spaceName := r.FormValue("space")
 
 	// checking space
-	_, err := _userMap.GetSpace(spaceName)
-	if err != nil {
-		if !errors.ErrNoData.Equal(err) {
-			return errors.As(err)
-		}
+	if _, ok := _userMap.GetSpace(spaceName); !ok {
 		space := UserSpace{
 			Name: spaceName,
 			// TODO: more
@@ -55,7 +51,7 @@ func addAuthHandler(w http.ResponseWriter, r *http.Request) error {
 	return writeMsg(w, 200, passwd)
 }
 func resetAuthHandler(w http.ResponseWriter, r *http.Request) error {
-	auth, ok := authBase(r)
+	auth, ok := authAdmin(r)
 	if !ok {
 		return writeMsg(w, 401, "auth failed")
 	}
@@ -78,7 +74,7 @@ func resetAuthHandler(w http.ResponseWriter, r *http.Request) error {
 	return writeMsg(w, 200, passwd)
 }
 func changeAuthHandler(w http.ResponseWriter, r *http.Request) error {
-	auth, ok := authBase(r)
+	auth, ok := authAdmin(r)
 	if !ok {
 		return writeMsg(w, 401, "auth failed")
 	}

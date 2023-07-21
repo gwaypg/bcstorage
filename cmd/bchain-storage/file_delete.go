@@ -1,30 +1,46 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/gwaylib/errors"
 )
 
 func init() {
+	// TODO: rollback
 	RegisterHandle("/file/delete", deleteHandler)
 }
 
 func deleteHandler(w http.ResponseWriter, r *http.Request) error {
-	fAuth, ok := authFile(r, true)
+	fAuth, ok := authWrite(r)
 	if !ok {
 		return writeMsg(w, 401, "auth failed")
 	}
 
-	rootPath := _rootPathFlag
-	path := filepath.Join(rootPath, fAuth.space, r.FormValue("file"))
-	if err := os.Remove(path); err != nil {
+	oldName, ok := validHttpFilePath(fAuth.spaceName, r.FormValue("file"))
+	if !ok {
+		return writeMsg(w, 404, "space not found")
+	}
+
+	bakName := uuid.New()
+	bakKey := fmt.Sprintf(_leveldb_prefix_del, time.Now().Unix(), fAuth.spaceName, bakName)
+	fileKey := fmt.Sprintf(".del.%s", bakName)
+	newPath, _ := validHttpFilePath(fAuth.spaceName, fileKey)
+
+	if err := PutLevelDB(bakKey, oldName); err != nil {
+		return errors.As(err)
+	}
+
+	if err := os.Rename(oldName, newPath); err != nil {
+		// if err := os.Remove(path); err != nil {
 		if !os.IsNotExist(err) {
 			return errors.As(err)
 		}
 	}
-	log.Warnf("Remove file:%s, from:%s", path, r.RemoteAddr)
+	log.Warnf("Delete file:%s, from:%s", oldName, r.RemoteAddr)
 	return nil
 }
