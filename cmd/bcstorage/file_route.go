@@ -45,6 +45,16 @@ func writeJson(w http.ResponseWriter, code int, obj interface{}) error {
 func (h *HttpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//log.Infof("from:%s,method:%s,path:%+v", r.RemoteAddr, r.Method, r.URL.Path)
 
+	// Cors
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	//w.Header().Add("Access-Control-Allow-Headers", "Content-Type,AccessToken,X-CSRF-Token, Authorization, Token")
+	//w.Header().Add("Access-Control-Allow-Credentials", "true")
+	if r.Method == "OPTIONS" {
+		writeMsg(w, 200, "OK")
+		return
+	}
+
 	// for public read
 	if strings.HasPrefix(r.URL.Path, "/public") {
 		//log.Infof("from:%s,method:%s,path:%+v", r.RemoteAddr, r.Method, r.URL.Path)

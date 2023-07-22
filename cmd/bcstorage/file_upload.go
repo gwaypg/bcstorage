@@ -47,14 +47,31 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) error {
 	if _, err := toFile.Seek(pos, 0); err != nil {
 		return writeMsg(w, 500, errors.As(err).Error())
 	}
-	if _, err := io.Copy(toFile, r.Body); err != nil {
-		return writeMsg(w, 500, errors.As(err).Error())
+	size := r.ContentLength
+	log.Infof("Upload file %s, offset:%d, size:%d, from %s", to, pos, size, r.RemoteAddr)
+
+	var uploader io.ReadCloser
+	mFile, _, err := r.FormFile("file")
+	if err != nil {
+		uploader = r.Body
+	} else {
+		uploader = mFile
+	}
+
+	written, err := io.Copy(toFile, uploader)
+	if err != nil {
+		toFile.Close()
+		log.Warn(errors.As(err))
+		return writeMsg(w, 500, errors.As(err).Code())
 	}
 	// flush the data?
 	toFile.Close()
-	r.Body.Close()
+	uploader.Close()
 
-	log.Infof("Upload file %s, offset:%d, from %s", to, pos, r.RemoteAddr)
+	if written < size {
+		return writeMsg(w, 201, "upload size not match")
+	}
+
 	if r.FormValue("checksum") == "sha1" {
 		toFile, err = os.Open(to)
 		if err != nil {
