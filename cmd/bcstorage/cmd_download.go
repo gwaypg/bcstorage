@@ -9,7 +9,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/gwaycc/bchain-storage/cmd/bchain-storage/client"
+	"github.com/gwaycc/bcstorage/module/client"
 )
 
 var downloadCmd = &cli.Command{

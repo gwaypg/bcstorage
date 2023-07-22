@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/gwaycc/bchain-storage/lib/utils"
+	"github.com/gwaycc/bcstorage/lib/utils"
 	"github.com/gwaylib/errors"
 )
 
