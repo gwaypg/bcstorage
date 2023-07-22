@@ -18,18 +18,14 @@ func init() {
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) error {
-	fAuth, ok := authWrite(r)
-	if !ok {
-		return writeMsg(w, 401, "auth failed")
+	authPath, _, err := authWrite(r)
+	if err != nil {
+		return writeMsg(w, 401, errors.As(err).Code())
 	}
 
+	to := authPath
 	posStr := r.FormValue("pos")
 	pos, _ := strconv.ParseInt(posStr, 10, 64)
-
-	to, ok := validHttpFilePath(fAuth.spaceName, r.FormValue("file"))
-	if !ok {
-		return writeMsg(w, 404, "file not found")
-	}
 	dir := filepath.Dir(to)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return writeMsg(w, 500, err.Error())

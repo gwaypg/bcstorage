@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -42,29 +43,34 @@ func writeJson(w http.ResponseWriter, code int, obj interface{}) error {
 }
 
 func (h *HttpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	//log.Infof("from:%s,method:%s,path:%s", r.RemoteAddr, r.Method, r.URL.String())
+	//log.Infof("from:%s,method:%s,path:%+v", r.RemoteAddr, r.Method, r.URL.Path)
 
 	// for public read
 	if strings.HasPrefix(r.URL.Path, "/public") {
+		//log.Infof("from:%s,method:%s,path:%+v", r.RemoteAddr, r.Method, r.URL.Path)
 		paths := strings.Split(r.URL.Path, "/")
-		if len(paths) == 0 {
-			writeMsg(w, 404, "no paths")
+		if len(paths) < 4 {
+			writeMsg(w, 404, "error paths")
 			return
 		}
-		userSpace, ok := _userMap.GetSpace(paths[0])
+		//log.Info("paths:", paths, paths[2])
+		userSpace, ok := _userMap.GetSpace(paths[2])
 		if !ok {
-			writeMsg(w, 404, "no userspace")
+			writeMsg(w, 404, fmt.Sprintf("no userspace '%s'", paths[2]))
 			return
 		}
 		if userSpace.Private {
 			writeMsg(w, 401, "unauth")
 			return
 		}
-		to, ok := validHttpFilePath(paths[0], filepath.Join(paths[1:]...))
-		if !ok {
-			writeMsg(w, 404, "file not found")
+		to, err := validHttpFilePath(paths[2], filepath.Join(paths[3:]...))
+		if err != nil {
+			//log.Info(errors.As(err))
+			writeMsg(w, 404, errors.As(err).Code())
 			return
 		}
+
+		log.Info("server file", to, r.URL.Path)
 
 		http.ServeFile(w, r, to)
 		return

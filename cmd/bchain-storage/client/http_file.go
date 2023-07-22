@@ -80,21 +80,25 @@ func (fInfo *FileInfo) Sys() interface{} {
 
 type HttpClient struct {
 	Host      string
+	AuthSpace string
 	AuthPath  string
 	AuthToken string
 }
 
-func NewHttpClient(host, authPath, authToken string) *HttpClient {
-	return &HttpClient{Host: host, AuthPath: authPath, AuthToken: authToken}
+// AuthSpace is must need.
+// AuthPath is a scope control.
+func NewHttpClient(host, authSpace, authPath, authToken string) *HttpClient {
+	return &HttpClient{Host: host, AuthSpace: authSpace, AuthPath: authPath, AuthToken: authToken}
 }
 
 func (f *HttpClient) Capacity(ctx context.Context) (*syscall.Statfs_t, error) {
 	params := url.Values{}
+	params.Add("space", f.AuthSpace)
+	params.Add("token", f.AuthToken)
 	req, err := http.NewRequestWithContext(ctx, "GET", "http://"+f.Host+"/file/capacity?"+params.Encode(), nil)
 	if err != nil {
 		return nil, errors.As(err)
 	}
-	req.SetBasicAuth(f.AuthPath, f.AuthToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, errors.As(err)
@@ -115,40 +119,20 @@ func (f *HttpClient) Capacity(ctx context.Context) (*syscall.Statfs_t, error) {
 
 }
 
-func (f *HttpClient) Move(ctx context.Context, remotePath, newRemotePath string) error {
+// the path need be a part of AuthPath
+func (f *HttpClient) Move(ctx context.Context, oldRemotePath, newRemotePath string) error {
 	params := url.Values{}
-	params.Add("file", remotePath)
+	params.Add("space", f.AuthSpace)
+	params.Add("file", oldRemotePath)
+	params.Add("token", f.AuthToken)
 	params.Add("new", newRemotePath)
 	req, err := http.NewRequestWithContext(ctx, "POST", "http://"+f.Host+"/file/move?"+params.Encode(), nil)
 	if err != nil {
-		return errors.As(err, remotePath)
+		return errors.As(err, oldRemotePath, newRemotePath)
 	}
-	req.SetBasicAuth(f.AuthPath, f.AuthToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return errors.As(err, remotePath)
-	}
-	defer resp.Body.Close()
-	respBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return errors.As(err)
-	}
-	if resp.StatusCode != 200 {
-		return errors.Parse(string(respBody)).As(resp.StatusCode)
-	}
-	return nil
-}
-func (f *HttpClient) Delete(ctx context.Context, remotePath string) error {
-	params := url.Values{}
-	params.Add("file", remotePath)
-	req, err := http.NewRequestWithContext(ctx, "POST", "http://"+f.Host+"/file/delete?"+params.Encode(), nil)
-	if err != nil {
-		return errors.As(err, remotePath)
-	}
-	req.SetBasicAuth(f.AuthPath, f.AuthToken)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return errors.As(err, remotePath)
+		return errors.As(err, oldRemotePath, newRemotePath)
 	}
 	defer resp.Body.Close()
 	respBody, err := ioutil.ReadAll(resp.Body)
@@ -161,18 +145,45 @@ func (f *HttpClient) Delete(ctx context.Context, remotePath string) error {
 	return nil
 }
 
-func (f *HttpClient) Truncate(ctx context.Context, remotePath string, size int64) error {
+// the file need be a part of AuthPath
+func (f *HttpClient) Delete(ctx context.Context, file string) error {
 	params := url.Values{}
-	params.Add("file", remotePath)
+	params.Add("space", f.AuthSpace)
+	params.Add("file", file)
+	params.Add("token", f.AuthToken)
+	req, err := http.NewRequestWithContext(ctx, "POST", "http://"+f.Host+"/file/delete?"+params.Encode(), nil)
+	if err != nil {
+		return errors.As(err, f.AuthPath)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return errors.As(err, f.AuthPath)
+	}
+	defer resp.Body.Close()
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return errors.As(err)
+	}
+	if resp.StatusCode != 200 {
+		return errors.Parse(string(respBody)).As(resp.StatusCode)
+	}
+	return nil
+}
+
+// the remoteFile need a sub path of AuthPath
+func (f *HttpClient) Truncate(ctx context.Context, remoteFile string, size int64) error {
+	params := url.Values{}
+	params.Add("space", f.AuthSpace)
+	params.Add("file", remoteFile)
+	params.Add("token", f.AuthToken)
 	params.Add("size", strconv.FormatInt(size, 10))
 	req, err := http.NewRequestWithContext(ctx, "GET", "http://"+f.Host+"/file/truncate?"+params.Encode(), nil)
 	if err != nil {
-		return errors.As(err, remotePath)
+		return errors.As(err, f.AuthPath)
 	}
-	req.SetBasicAuth(f.AuthPath, f.AuthToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return errors.As(err, remotePath)
+		return errors.As(err, f.AuthPath)
 	}
 	defer resp.Body.Close()
 	respBody, err := ioutil.ReadAll(resp.Body)
@@ -185,14 +196,16 @@ func (f *HttpClient) Truncate(ctx context.Context, remotePath string, size int64
 	return nil
 }
 
+// the remotePath need be a part of sub AuthPath
 func (f *HttpClient) FileStat(ctx context.Context, remotePath string) (os.FileInfo, error) {
 	params := url.Values{}
+	params.Add("space", f.AuthSpace)
 	params.Add("file", remotePath)
+	params.Add("token", f.AuthToken)
 	req, err := http.NewRequest("GET", "http://"+f.Host+"/file/stat?"+params.Encode(), nil)
 	if err != nil {
 		return nil, errors.As(err)
 	}
-	req.SetBasicAuth(f.AuthPath, f.AuthToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, errors.As(err)
@@ -205,13 +218,13 @@ func (f *HttpClient) FileStat(ctx context.Context, remotePath string) (os.FileIn
 	// file not found
 	switch resp.StatusCode {
 	case 404:
-		return nil, &os.PathError{"FileStat", remotePath, _errNotExist}
+		return nil, &os.PathError{"FileStat", f.AuthPath, _errNotExist}
 	case 200:
 		stat := &utils.ServerFileStat{}
 		if err := json.Unmarshal(respBody, &stat); err != nil {
-			return nil, errors.As(err, remotePath)
+			return nil, errors.As(err, f.AuthPath)
 		}
-		stat.FileName = remotePath
+		stat.FileName = f.AuthPath
 		return stat, nil
 
 	default:
@@ -220,6 +233,7 @@ func (f *HttpClient) FileStat(ctx context.Context, remotePath string) (os.FileIn
 }
 
 // TODO: erasure coding
+// the remotePath need be a sub part of AuthPath
 func (f *HttpClient) upload(ctx context.Context, localPath, remotePath string, append bool) (int64, error) {
 	pos := int64(0)
 	if append {
@@ -229,7 +243,7 @@ func (f *HttpClient) upload(ctx context.Context, localPath, remotePath string, a
 			if !os.IsNotExist(err) {
 				return 0, errors.As(err)
 			}
-			info = &FileInfo{name: remotePath}
+			info = &FileInfo{name: f.AuthPath}
 		}
 		if info.Size() > 0 {
 			pos = info.Size() - 1
@@ -256,14 +270,15 @@ func (f *HttpClient) upload(ctx context.Context, localPath, remotePath string, a
 
 	// get remote io
 	params := url.Values{}
+	params.Add("space", f.AuthSpace)
 	params.Add("file", remotePath)
+	params.Add("token", f.AuthToken)
 	params.Add("pos", strconv.FormatInt(pos, 10))
 	params.Add("checksum", "sha1")
 	req, err := http.NewRequestWithContext(ctx, "POST", "http://"+f.Host+"/file/upload?"+params.Encode(), localFile)
 	if err != nil {
 		return 0, errors.As(err)
 	}
-	req.SetBasicAuth(f.AuthPath, f.AuthToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return 0, errors.As(err)
@@ -294,7 +309,7 @@ func (f *HttpClient) upload(ctx context.Context, localPath, remotePath string, a
 	localSum := fmt.Sprintf("%x", localHash.Sum(nil))
 
 	if localSum != string(respBody) {
-		log.Warnf("upload file not match, retransmit %s:%s,%s", remotePath, localSum, string(respBody))
+		log.Warnf("upload file not match, retransmit %s:%s,%s", f.AuthPath, localSum, string(respBody))
 		if !append {
 			return 0, ErrHashNotMatch.As(string(respBody), localSum)
 		}
@@ -309,6 +324,7 @@ func (f *HttpClient) upload(ctx context.Context, localPath, remotePath string, a
 	return localStat.Size() - pos, nil
 }
 
+// the remotePath need be a sub part of AuthPath
 func (f *HttpClient) Upload(ctx context.Context, localPath, remotePath string) error {
 	fStat, err := os.Lstat(localPath)
 	if err != nil {
@@ -343,12 +359,13 @@ func (f *HttpClient) Upload(ctx context.Context, localPath, remotePath string) e
 
 func (f *HttpClient) List(ctx context.Context, remotePath string) ([]utils.ServerFileStat, error) {
 	params := url.Values{}
+	params.Add("space", f.AuthSpace)
 	params.Add("file", remotePath)
+	params.Add("token", f.AuthToken)
 	req, err := http.NewRequestWithContext(ctx, "GET", "http://"+f.Host+"/file/list?"+params.Encode(), nil)
 	if err != nil {
 		return nil, errors.As(err, remotePath)
 	}
-	req.SetBasicAuth(f.AuthPath, f.AuthToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, errors.As(err, remotePath)
@@ -391,12 +408,13 @@ func (f *HttpClient) download(ctx context.Context, localPath, remotePath string)
 	}
 
 	params := url.Values{}
+	params.Add("space", f.AuthSpace)
 	params.Add("file", remotePath)
+	params.Add("token", f.AuthToken)
 	req, err := http.NewRequestWithContext(ctx, "GET", "http://"+f.Host+"/file/download?"+params.Encode(), nil)
 	if err != nil {
 		return 0, errors.As(err)
 	}
-	req.SetBasicAuth(f.AuthPath, f.AuthToken)
 	req.Header.Set("Range", fmt.Sprintf("bytes=%d-", pos))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -477,10 +495,10 @@ type HttpFile struct {
 	seekOffset int64
 }
 
-func OpenHttpFile(ctx context.Context, host, authPath, authToken string) *HttpFile {
+func OpenHttpFile(ctx context.Context, host, authSpace, authPath, authToken string) *HttpFile {
 	return &HttpFile{
 		ctx:    ctx,
-		client: NewHttpClient(host, authPath, authToken),
+		client: NewHttpClient(host, authSpace, authPath, authToken),
 	}
 }
 
@@ -490,12 +508,13 @@ func (f *HttpFile) Name() string {
 
 func (f *HttpFile) readRemote(b []byte, off int64) (int, error) {
 	params := url.Values{}
+	params.Add("space", f.client.AuthSpace)
 	params.Add("file", f.client.AuthPath)
+	params.Add("token", f.client.AuthToken)
 	req, err := http.NewRequestWithContext(f.ctx, "GET", "http://"+f.client.Host+"/file/download?"+params.Encode(), nil)
 	if err != nil {
 		return 0, errors.As(err)
 	}
-	req.SetBasicAuth(f.client.AuthPath, f.client.AuthToken)
 	req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", off, off+int64(len(b))))
 	log.Infof("Range:%s", fmt.Sprintf("bytes=%d-%d", off, off+int64(len(b))))
 	resp, err := http.DefaultClient.Do(req)
@@ -526,13 +545,14 @@ func (f *HttpFile) readRemote(b []byte, off int64) (int, error) {
 func (f *HttpFile) writeRemote(b []byte, off int64) (int64, error) {
 	r := bytes.NewReader(b)
 	params := url.Values{}
+	params.Add("space", f.client.AuthSpace)
 	params.Add("file", f.client.AuthPath)
+	params.Add("token", f.client.AuthToken)
 	params.Add("pos", strconv.FormatInt(off, 10))
 	req, err := http.NewRequestWithContext(f.ctx, "POST", "http://"+f.client.Host+"/file/upload?"+params.Encode(), r)
 	if err != nil {
 		return 0, errors.As(err)
 	}
-	req.SetBasicAuth(f.client.AuthPath, f.client.AuthToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return 0, errors.As(err)
@@ -620,6 +640,8 @@ func (f *HttpFile) Write(b []byte) (n int, err error) {
 func (f *HttpFile) Stat() (os.FileInfo, error) {
 	return f.client.FileStat(f.ctx, f.client.AuthPath)
 }
-func (f *HttpFile) Truncate(size int64) error {
-	return f.client.Truncate(f.ctx, f.client.AuthPath, size)
+
+// remotePath need be a part of AuthPath
+func (f *HttpFile) Truncate(remotePath string, size int64) error {
+	return f.client.Truncate(f.ctx, remotePath, size)
 }

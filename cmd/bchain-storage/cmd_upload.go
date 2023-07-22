@@ -21,6 +21,11 @@ var uploadCmd = &cli.Command{
 			Usage: "downlad mode, support mode: 'http', 'TODO:tcp'",
 			Value: "http",
 		},
+		&cli.StringFlag{
+			Name:  "space",
+			Usage: "user spacename, same as username when not set",
+			Value: "",
+		},
 	},
 	Action: func(cctx *cli.Context) error {
 		if !cctx.Args().Present() {
@@ -44,13 +49,17 @@ var uploadCmd = &cli.Command{
 					cctx.String("user"),
 					cctx.String("passwd"),
 				)
-				newToken, err := ac.NewFileToken(ctx, authFile)
+				space := cctx.String("space")
+				if len(space) == 0 {
+					space = cctx.String("user")
+				}
+				newToken, err := ac.NewFileToken(ctx, space, authFile)
 				if err != nil {
 					panic(err)
 				}
 				log.Infof("start upload: %s->%s", localPath, remotePath)
 				startTime := time.Now()
-				fc := client.NewHttpClient(_httpApiFlag, authFile, string(newToken))
+				fc := client.NewHttpClient(_httpApiFlag, space, authFile, string(newToken))
 				if err := fc.Upload(ctx, localPath, remotePath); err != nil {
 					panic(err)
 				}

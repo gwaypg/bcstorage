@@ -12,9 +12,9 @@ func init() {
 }
 
 func capacityHandler(w http.ResponseWriter, r *http.Request) error {
-	fAuth, ok := authWrite(r)
-	if !ok {
-		return writeMsg(w, 401, "auth failed")
+	_, fAuth, err := authWrite(r)
+	if err != nil {
+		return writeMsg(w, 401, errors.As(err).Code())
 	}
 
 	// implement the df -h

@@ -133,8 +133,9 @@ func (auth *AuthClient) ChangeAuth(ctx context.Context) ([]byte, error) {
 	return nil, errors.Parse(string(respBody)).As(resp.StatusCode)
 }
 
-func (auth *AuthClient) NewFileToken(ctx context.Context, authFile string) ([]byte, error) {
+func (auth *AuthClient) NewFileToken(ctx context.Context, authSpace, authFile string) ([]byte, error) {
 	params := url.Values{}
+	params.Add("sapce", authSpace)
 	params.Add("file", authFile)
 	req, err := http.NewRequestWithContext(ctx, "GET", "https://"+auth.Host+"/sys/file/token?"+params.Encode(), nil)
 	if err != nil {

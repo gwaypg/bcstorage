@@ -16,16 +16,12 @@ func init() {
 }
 
 func deleteHandler(w http.ResponseWriter, r *http.Request) error {
-	fAuth, ok := authWrite(r)
-	if !ok {
-		return writeMsg(w, 401, "auth failed")
+	authPath, fAuth, err := authWrite(r)
+	if err != nil {
+		return writeMsg(w, 401, errors.As(err).Code())
 	}
 
-	oldName, ok := validHttpFilePath(fAuth.spaceName, r.FormValue("file"))
-	if !ok {
-		return writeMsg(w, 404, "space not found")
-	}
-
+	oldName := authPath
 	bakName := uuid.New()
 	bakKey := fmt.Sprintf(_leveldb_prefix_del, time.Now().Unix(), fAuth.spaceName, bakName)
 	fileKey := fmt.Sprintf(".del.%s", bakName)

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/gwaylib/errors"
 )
 
 func init() {
@@ -11,14 +12,17 @@ func init() {
 }
 
 func tokenHandler(w http.ResponseWriter, r *http.Request) error {
-	auth, ok := authAdmin(r)
-	if !ok {
-		return writeMsg(w, 401, "auth failed")
+	auth, err := authAdmin(r)
+	if err != nil {
+		return writeMsg(w, 401, errors.As(err).Code())
 	}
 	if auth.User == adminUser {
 		return writeMsg(w, 401, "can not use 'admin' to manage files")
 	}
-
+	space := r.FormValue("space")
+	if len(space) == 0 {
+		space = auth.User
+	}
 	file := r.FormValue("file")
 	if len(file) == 0 {
 		return writeMsg(w, 403, "params failed")
@@ -37,6 +41,6 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	token := uuid.New().String()
-	_handler.AddToken(auth.SpaceName, file, token)
+	_handler.AddToken(space, file, token)
 	return writeMsg(w, 200, token)
 }

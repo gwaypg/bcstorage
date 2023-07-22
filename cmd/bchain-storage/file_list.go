@@ -15,22 +15,18 @@ func init() {
 }
 
 func statHandler(w http.ResponseWriter, r *http.Request) error {
-	fAuth, ok := authWrite(r)
-	if !ok {
-		return writeMsg(w, 401, "auth failed")
+	authPath, _, err := authWrite(r)
+	if err != nil {
+		log.Info(err)
+		return writeMsg(w, 401, errors.As(err).Code())
 	}
 
-	path, ok := validHttpFilePath(fAuth.spaceName, r.FormValue("file"))
-	if !ok {
-		return writeMsg(w, 404, "file not found")
-	}
-
-	fStat, err := os.Stat(path)
+	fStat, err := os.Stat(authPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return writeMsg(w, 404, "filepath not exist")
 		}
-		return errors.As(err, path)
+		return errors.As(err, authPath)
 	}
 	return writeJson(w, 200, &utils.ServerFileStat{
 		FileName:    ".",
@@ -41,22 +37,18 @@ func statHandler(w http.ResponseWriter, r *http.Request) error {
 }
 
 func listHandler(w http.ResponseWriter, r *http.Request) error {
-	fAuth, ok := authWrite(r)
-	if !ok {
-		return writeMsg(w, 401, "auth failed")
+	authPath, _, err := authWrite(r)
+	if err != nil {
+		log.Info(err)
+		return writeMsg(w, 401, errors.As(err).Code())
 	}
 
-	path, ok := validHttpFilePath(fAuth.spaceName, r.FormValue("file"))
-	if !ok {
-		return writeMsg(w, 404, "file not found")
-	}
-
-	fStat, err := os.Stat(path)
+	fStat, err := os.Stat(authPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return writeMsg(w, 404, "filepath not exist")
 		}
-		return errors.As(err, path)
+		return errors.As(err, authPath)
 	}
 	if !fStat.IsDir() {
 		return writeJson(w, 200, []utils.ServerFileStat{
@@ -68,7 +60,7 @@ func listHandler(w http.ResponseWriter, r *http.Request) error {
 			},
 		})
 	}
-	dirs, err := ioutil.ReadDir(path)
+	dirs, err := ioutil.ReadDir(authPath)
 	if err != nil {
 		return errors.As(err)
 	}

@@ -2,6 +2,8 @@ package main
 
 import (
 	"net/http"
+
+	"github.com/gwaylib/errors"
 )
 
 func init() {
@@ -9,14 +11,10 @@ func init() {
 }
 
 func downloadHandler(w http.ResponseWriter, r *http.Request) error {
-	fAuth, ok := authWrite(r)
-	if !ok {
-		return writeMsg(w, 401, "auth failed")
+	authPath, _, err := authWrite(r)
+	if err != nil {
+		return writeMsg(w, 401, errors.As(err).Code())
 	}
-	to, ok := validHttpFilePath(fAuth.spaceName, r.FormValue("file"))
-	if !ok {
-		return writeMsg(w, 404, "file not found")
-	}
-	http.ServeFile(w, r, to)
+	http.ServeFile(w, r, authPath)
 	return nil
 }

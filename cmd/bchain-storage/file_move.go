@@ -12,18 +12,15 @@ func init() {
 }
 
 func moveHandler(w http.ResponseWriter, r *http.Request) error {
-	fAuth, ok := authWrite(r)
-	if !ok {
-		return writeMsg(w, 401, "auth failed")
+	authPath, fAuth, err := authWrite(r)
+	if err != nil {
+		return writeMsg(w, 401, errors.As(err).Code())
 	}
 
-	newName, ok := validHttpFilePath(fAuth.spaceName, r.FormValue("new"))
-	if !ok {
-		return writeMsg(w, 403, "error filepath")
-	}
-	oldName, ok := validHttpFilePath(fAuth.spaceName, r.FormValue("file"))
-	if !ok {
-		return writeMsg(w, 404, "file not found")
+	oldName := authPath
+	newName, err := validHttpFilePath(fAuth.spaceName, r.FormValue("new"))
+	if err != nil {
+		return writeMsg(w, 403, errors.As(err).Code())
 	}
 	if err := os.Rename(oldName, newName); err != nil {
 		return errors.As(err)

@@ -14,9 +14,9 @@ func init() {
 }
 
 func truncateHandler(w http.ResponseWriter, r *http.Request) error {
-	fAuth, ok := authWrite(r)
-	if !ok {
-		return writeMsg(w, 401, "auth failed")
+	authPath, _, err := authWrite(r)
+	if err != nil {
+		return writeMsg(w, 401, errors.As(err).Code())
 	}
 
 	size, err := strconv.ParseInt(r.FormValue("size"), 10, 64)
@@ -24,24 +24,19 @@ func truncateHandler(w http.ResponseWriter, r *http.Request) error {
 		return writeMsg(w, 403, "file size failed")
 	}
 
-	path, ok := validHttpFilePath(fAuth.spaceName, r.FormValue("file"))
-	if !ok {
-		return writeMsg(w, 404, "file not found")
+	if err := os.MkdirAll(filepath.Dir(authPath), 0755); err != nil {
+		return errors.As(err, authPath)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return errors.As(err, path)
-	}
-
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644) // nolint
+	f, err := os.OpenFile(authPath, os.O_RDWR|os.O_CREATE, 0644) // nolint
 	if err != nil {
-		return errors.As(err, path)
+		return errors.As(err, authPath)
 	}
 	defer f.Close()
 
-	log.Infof("Trucate %s, size:%d, from:%s", path, size, r.RemoteAddr)
+	log.Infof("Trucate %s, size:%d, from:%s", authPath, size, r.RemoteAddr)
 	if err := f.Truncate(size); err != nil {
-		return errors.As(err, path)
+		return errors.As(err, authPath)
 	}
 	return nil
 }

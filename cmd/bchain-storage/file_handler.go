@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"sync"
 	"time"
 )
@@ -41,15 +42,15 @@ func (h *HttpHandler) AddToken(spaceName, file, token string) {
 		createTime: time.Now(),
 	}
 }
-func (h *HttpHandler) DelayToken(file string) bool {
+func (h *HttpHandler) DelayToken(token string) bool {
 	h.tokenLk.Lock()
 	defer h.tokenLk.Unlock()
-	t, ok := h.token[file]
+	t, ok := h.token[token]
 	if !ok {
 		return false
 	}
 	t.createTime = time.Now()
-	h.token[file] = t
+	h.token[token] = t
 	return true
 }
 
@@ -59,7 +60,7 @@ func (h *HttpHandler) DeleteToken(token string) {
 	delete(h.token, token)
 }
 
-func (h *HttpHandler) VerifyToken(file, token string) (FileToken, bool) {
+func (h *HttpHandler) VerifyToken(space, file, token string) (FileToken, bool) {
 	h.tokenLk.Lock()
 	defer h.tokenLk.Unlock()
 	h.gcToken()
@@ -68,7 +69,7 @@ func (h *HttpHandler) VerifyToken(file, token string) (FileToken, bool) {
 	if !ok {
 		return FileToken{}, false
 	}
-	if t.file != file {
+	if t.spaceName != space || !strings.HasPrefix(file, t.file) {
 		return FileToken{}, false
 	}
 	return t, true

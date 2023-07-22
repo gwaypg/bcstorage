@@ -14,15 +14,15 @@ func init() {
 }
 
 func addAuthHandler(w http.ResponseWriter, r *http.Request) error {
-	auth, ok := authAdmin(r)
-	if !ok {
-		return writeMsg(w, 401, "auth failed")
+	auth, err := authAdmin(r)
+	if err != nil {
+		return writeMsg(w, 401, errors.As(err).Code())
 	}
 	if auth.User != adminUser {
 		return writeMsg(w, 401, "need admin user")
 	}
 	if bcrypt.BcryptMatch(adminDefaultPwd, auth.Passwd) {
-		return writeMsg(w, 401, "admin passwd not set")
+		return writeMsg(w, 401, "need reset the admin default passwd")
 	}
 	spaceName := r.FormValue("space")
 
@@ -39,9 +39,9 @@ func addAuthHandler(w http.ResponseWriter, r *http.Request) error {
 
 	passwd := genPasswd()
 	newAuth := UserAuth{
-		User:      r.FormValue("user"),
-		Passwd:    bcrypt.BcryptPwd(passwd),
-		SpaceName: spaceName,
+		User:   r.FormValue("user"),
+		Passwd: bcrypt.BcryptPwd(passwd),
+		Spaces: map[string]bool{spaceName: true},
 	}
 	if err := _userMap.UpdateAuth(newAuth); err != nil {
 		return errors.As(err)
@@ -51,9 +51,9 @@ func addAuthHandler(w http.ResponseWriter, r *http.Request) error {
 	return writeMsg(w, 200, passwd)
 }
 func resetAuthHandler(w http.ResponseWriter, r *http.Request) error {
-	auth, ok := authAdmin(r)
-	if !ok {
-		return writeMsg(w, 401, "auth failed")
+	auth, err := authAdmin(r)
+	if err != nil {
+		return writeMsg(w, 401, errors.As(err).Code())
 	}
 	if auth.User != adminUser {
 		return writeMsg(w, 401, "need admin user")
@@ -74,9 +74,9 @@ func resetAuthHandler(w http.ResponseWriter, r *http.Request) error {
 	return writeMsg(w, 200, passwd)
 }
 func changeAuthHandler(w http.ResponseWriter, r *http.Request) error {
-	auth, ok := authAdmin(r)
-	if !ok {
-		return writeMsg(w, 401, "auth failed")
+	auth, err := authAdmin(r)
+	if err != nil {
+		return writeMsg(w, 401, errors.As(err).Code())
 	}
 
 	passwd := genPasswd()

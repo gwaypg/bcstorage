@@ -21,6 +21,11 @@ var downloadCmd = &cli.Command{
 			Usage: "downlad mode, support mode: 'http', 'tcp'. http mode support directory and resume download, tcp only support one file for debug fuse function.",
 			Value: "http",
 		},
+		&cli.StringFlag{
+			Name:  "space",
+			Usage: "user spacename, same as username when not set",
+			Value: "",
+		},
 		&cli.IntFlag{
 			Name:  "read-size",
 			Usage: "buffer size for read",
@@ -49,13 +54,17 @@ var downloadCmd = &cli.Command{
 					cctx.String("user"),
 					cctx.String("passwd"),
 				)
-				newToken, err := ac.NewFileToken(ctx, authFile)
+				space := cctx.String("space")
+				if len(space) == 0 {
+					space = cctx.String("user")
+				}
+				newToken, err := ac.NewFileToken(ctx, space, authFile)
 				if err != nil {
 					panic(err)
 				}
 				log.Infof("start download: %s->%s", remotePath, localPath)
 				startTime := time.Now()
-				fc := client.NewHttpClient(_httpApiFlag, authFile, string(newToken))
+				fc := client.NewHttpClient(_httpApiFlag, space, authFile, string(newToken))
 				if err := fc.Download(ctx, localPath, remotePath); err != nil {
 					panic(err)
 				}
