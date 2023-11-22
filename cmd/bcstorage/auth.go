@@ -162,7 +162,7 @@ func authWrite(r *http.Request) (string, FileToken, error) {
 	space := r.FormValue("space")
 	file := r.FormValue("file")
 	token := r.FormValue("token")
-	fAuth, ok := _handler.VerifyToken(space, file, token)
+	fAuth, ok := _fileHandler.VerifyToken(space, file, token)
 	if !ok {
 		return "", FileToken{}, errors.New("verify token failed").As(space, file, token)
 	}

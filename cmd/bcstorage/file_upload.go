@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	RegisterHandle("/file/upload", uploadHandler)
+	RegisterFileHandle("/file/upload", uploadHandler)
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) error {

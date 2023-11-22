@@ -70,7 +70,7 @@ var daemonCmd = &cli.Command{
 		// for http download and upload
 		go func() {
 			log.Infof("http-api:%s", _httpApiFlag)
-			log.Fatal(http.ListenAndServe(_httpApiFlag, _handler))
+			log.Fatal(http.ListenAndServe(_httpApiFlag, _fileHandler))
 		}()
 
 		// for https auth command
@@ -80,7 +80,7 @@ var daemonCmd = &cli.Command{
 			return errors.As(err)
 		}
 		log.Infof("auth-api:%s", _authApiFlag)
-		return http.ListenAndServeTLS(_authApiFlag, crtPath, keyPath, _handler)
+		return http.ListenAndServeTLS(_authApiFlag, crtPath, keyPath, _sysHandler)
 
 	},
 }

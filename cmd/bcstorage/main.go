@@ -18,7 +18,8 @@ var (
 
 	// flag for server
 	_rootPathFlag = ""
-	_handler      = &HttpHandler{
+	_sysHandler   = &SysHandler{}
+	_fileHandler  = &FileHandler{
 		token: map[string]FileToken{},
 	}
 )

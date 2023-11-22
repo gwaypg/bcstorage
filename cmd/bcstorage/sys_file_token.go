@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	RegisterHandle("/sys/file/token", tokenHandler)
+	RegisterSysHandle("/sys/file/token", tokenHandler)
 }
 
 func tokenHandler(w http.ResponseWriter, r *http.Request) error {
@@ -29,18 +29,18 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if r.Method == "POST" {
-		if !_handler.DelayToken(file) {
+		if !_fileHandler.DelayToken(file) {
 			return writeMsg(w, 403, "token has expired")
 		}
 		return writeMsg(w, 200, "success")
 	}
 
 	if r.Method == "DELETE" {
-		_handler.DeleteToken(file)
+		_fileHandler.DeleteToken(file)
 		return writeMsg(w, 200, "success")
 	}
 
 	token := uuid.New().String()
-	_handler.AddToken(space, file, token)
+	_fileHandler.AddToken(space, file, token)
 	return writeMsg(w, 200, token)
 }

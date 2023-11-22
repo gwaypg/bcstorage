@@ -12,7 +12,7 @@ import (
 
 func init() {
 	// TODO: rollback
-	RegisterHandle("/file/delete", deleteHandler)
+	RegisterFileHandle("/file/delete", deleteHandler)
 }
 
 func deleteHandler(w http.ResponseWriter, r *http.Request) error {

@@ -27,7 +27,7 @@ func NewAuthClient(host, user, passwd string) *AuthClient {
 }
 
 func (auth *AuthClient) Check(ctx context.Context) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://"+auth.Host+"/check", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://"+auth.Host+"/sys/check", nil)
 	if err != nil {
 		return nil, errors.As(err)
 	}
