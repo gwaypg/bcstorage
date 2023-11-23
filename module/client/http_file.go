@@ -79,10 +79,18 @@ func (fInfo *FileInfo) Sys() interface{} {
 }
 
 type HttpClient struct {
+	Scheme    string
 	Host      string
 	AuthSpace string
 	AuthPath  string
 	AuthToken string
+}
+
+func (hc *HttpClient) SchemeHost() string {
+	if len(hc.Scheme) == 0 {
+		return "http://" + hc.Host
+	}
+	return hc.Scheme + "://" + hc.Host
 }
 
 // AuthSpace is must need.
@@ -95,11 +103,11 @@ func (f *HttpClient) Capacity(ctx context.Context) (*syscall.Statfs_t, error) {
 	params := url.Values{}
 	params.Add("space", f.AuthSpace)
 	params.Add("token", f.AuthToken)
-	req, err := http.NewRequestWithContext(ctx, "GET", "http://"+f.Host+"/file/capacity?"+params.Encode(), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", f.SchemeHost()+"/file/capacity?"+params.Encode(), nil)
 	if err != nil {
 		return nil, errors.As(err)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := utils.HttpsClient.Do(req)
 	if err != nil {
 		return nil, errors.As(err)
 	}
@@ -126,11 +134,11 @@ func (f *HttpClient) Move(ctx context.Context, oldRemotePath, newRemotePath stri
 	params.Add("file", oldRemotePath)
 	params.Add("token", f.AuthToken)
 	params.Add("new", newRemotePath)
-	req, err := http.NewRequestWithContext(ctx, "POST", "http://"+f.Host+"/file/move?"+params.Encode(), nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", f.SchemeHost()+"/file/move?"+params.Encode(), nil)
 	if err != nil {
 		return errors.As(err, oldRemotePath, newRemotePath)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := utils.HttpsClient.Do(req)
 	if err != nil {
 		return errors.As(err, oldRemotePath, newRemotePath)
 	}
@@ -151,11 +159,11 @@ func (f *HttpClient) Delete(ctx context.Context, file string) error {
 	params.Add("space", f.AuthSpace)
 	params.Add("file", file)
 	params.Add("token", f.AuthToken)
-	req, err := http.NewRequestWithContext(ctx, "POST", "http://"+f.Host+"/file/delete?"+params.Encode(), nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", f.SchemeHost()+"/file/delete?"+params.Encode(), nil)
 	if err != nil {
 		return errors.As(err, f.AuthPath)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := utils.HttpsClient.Do(req)
 	if err != nil {
 		return errors.As(err, f.AuthPath)
 	}
@@ -177,11 +185,11 @@ func (f *HttpClient) Truncate(ctx context.Context, remoteFile string, size int64
 	params.Add("file", remoteFile)
 	params.Add("token", f.AuthToken)
 	params.Add("size", strconv.FormatInt(size, 10))
-	req, err := http.NewRequestWithContext(ctx, "GET", "http://"+f.Host+"/file/truncate?"+params.Encode(), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", f.SchemeHost()+"/file/truncate?"+params.Encode(), nil)
 	if err != nil {
 		return errors.As(err, f.AuthPath)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := utils.HttpsClient.Do(req)
 	if err != nil {
 		return errors.As(err, f.AuthPath)
 	}
@@ -202,11 +210,11 @@ func (f *HttpClient) FileStat(ctx context.Context, remotePath string) (os.FileIn
 	params.Add("space", f.AuthSpace)
 	params.Add("file", remotePath)
 	params.Add("token", f.AuthToken)
-	req, err := http.NewRequest("GET", "http://"+f.Host+"/file/stat?"+params.Encode(), nil)
+	req, err := http.NewRequest("GET", f.SchemeHost()+"/file/stat?"+params.Encode(), nil)
 	if err != nil {
 		return nil, errors.As(err)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := utils.HttpsClient.Do(req)
 	if err != nil {
 		return nil, errors.As(err)
 	}
@@ -275,11 +283,11 @@ func (f *HttpClient) upload(ctx context.Context, localPath, remotePath string, a
 	params.Add("token", f.AuthToken)
 	params.Add("pos", strconv.FormatInt(pos, 10))
 	params.Add("checksum", "sha1")
-	req, err := http.NewRequestWithContext(ctx, "POST", "http://"+f.Host+"/file/upload?"+params.Encode(), localFile)
+	req, err := http.NewRequestWithContext(ctx, "POST", f.SchemeHost()+"/file/upload?"+params.Encode(), localFile)
 	if err != nil {
 		return 0, errors.As(err)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := utils.HttpsClient.Do(req)
 	if err != nil {
 		return 0, errors.As(err)
 	}
@@ -362,11 +370,11 @@ func (f *HttpClient) List(ctx context.Context, remotePath string) ([]utils.Serve
 	params.Add("space", f.AuthSpace)
 	params.Add("file", remotePath)
 	params.Add("token", f.AuthToken)
-	req, err := http.NewRequestWithContext(ctx, "GET", "http://"+f.Host+"/file/list?"+params.Encode(), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", f.SchemeHost()+"/file/list?"+params.Encode(), nil)
 	if err != nil {
 		return nil, errors.As(err, remotePath)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := utils.HttpsClient.Do(req)
 	if err != nil {
 		return nil, errors.As(err, remotePath)
 	}
@@ -411,12 +419,12 @@ func (f *HttpClient) download(ctx context.Context, localPath, remotePath string)
 	params.Add("space", f.AuthSpace)
 	params.Add("file", remotePath)
 	params.Add("token", f.AuthToken)
-	req, err := http.NewRequestWithContext(ctx, "GET", "http://"+f.Host+"/file/download?"+params.Encode(), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", f.SchemeHost()+"/file/download?"+params.Encode(), nil)
 	if err != nil {
 		return 0, errors.As(err)
 	}
 	req.Header.Set("Range", fmt.Sprintf("bytes=%d-", pos))
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := utils.HttpsClient.Do(req)
 	if err != nil {
 		return 0, errors.As(err)
 	}
@@ -511,13 +519,13 @@ func (f *HttpFile) readRemote(b []byte, off int64) (int, error) {
 	params.Add("space", f.client.AuthSpace)
 	params.Add("file", f.client.AuthPath)
 	params.Add("token", f.client.AuthToken)
-	req, err := http.NewRequestWithContext(f.ctx, "GET", "http://"+f.client.Host+"/file/download?"+params.Encode(), nil)
+	req, err := http.NewRequestWithContext(f.ctx, "GET", f.client.SchemeHost()+"/file/download?"+params.Encode(), nil)
 	if err != nil {
 		return 0, errors.As(err)
 	}
 	req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", off, off+int64(len(b))))
 	log.Infof("Range:%s", fmt.Sprintf("bytes=%d-%d", off, off+int64(len(b))))
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := utils.HttpsClient.Do(req)
 	if err != nil {
 		return 0, errors.As(err)
 	}
@@ -549,11 +557,11 @@ func (f *HttpFile) writeRemote(b []byte, off int64) (int64, error) {
 	params.Add("file", f.client.AuthPath)
 	params.Add("token", f.client.AuthToken)
 	params.Add("pos", strconv.FormatInt(off, 10))
-	req, err := http.NewRequestWithContext(f.ctx, "POST", "http://"+f.client.Host+"/file/upload?"+params.Encode(), r)
+	req, err := http.NewRequestWithContext(f.ctx, "POST", f.client.SchemeHost()+"/file/upload?"+params.Encode(), r)
 	if err != nil {
 		return 0, errors.As(err)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := utils.HttpsClient.Do(req)
 	if err != nil {
 		return 0, errors.As(err)
 	}

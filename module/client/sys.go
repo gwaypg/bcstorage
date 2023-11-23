@@ -16,9 +16,17 @@ var (
 )
 
 type AuthClient struct {
+	Scheme string
 	Host   string
 	User   string
 	Passwd string
+}
+
+func (ac *AuthClient) SchemeHost() string {
+	if len(ac.Scheme) == 0 {
+		return "https://" + ac.Host
+	}
+	return ac.Scheme + "://" + ac.Host
 }
 
 func NewAuthClient(host, user, passwd string) *AuthClient {
@@ -27,7 +35,7 @@ func NewAuthClient(host, user, passwd string) *AuthClient {
 }
 
 func (auth *AuthClient) Check(ctx context.Context) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://"+auth.Host+"/sys/check", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", auth.SchemeHost()+"/sys/check", nil)
 	if err != nil {
 		return nil, errors.As(err)
 	}
@@ -51,7 +59,7 @@ func (auth *AuthClient) AddUser(ctx context.Context, user, space string) ([]byte
 	params := make(url.Values)
 	params.Add("user", user)
 	params.Add("space", space)
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://"+auth.Host+"/sys/auth/add", strings.NewReader(params.Encode()))
+	req, err := http.NewRequestWithContext(ctx, "POST", auth.SchemeHost()+"/sys/auth/add", strings.NewReader(params.Encode()))
 	if err != nil {
 		return nil, errors.As(err)
 	}
@@ -80,7 +88,7 @@ func (auth *AuthClient) AddUser(ctx context.Context, user, space string) ([]byte
 func (auth *AuthClient) ResetUserPasswd(ctx context.Context, user string) ([]byte, error) {
 	params := make(url.Values)
 	params.Add("user", user)
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://"+auth.Host+"/sys/auth/reset", strings.NewReader(params.Encode()))
+	req, err := http.NewRequestWithContext(ctx, "POST", auth.SchemeHost()+"/sys/auth/reset", strings.NewReader(params.Encode()))
 	if err != nil {
 		return nil, errors.As(err)
 	}
@@ -107,7 +115,7 @@ func (auth *AuthClient) ResetUserPasswd(ctx context.Context, user string) ([]byt
 }
 
 func (auth *AuthClient) ChangeAuth(ctx context.Context) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://"+auth.Host+"/sys/auth/change", nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", auth.SchemeHost()+"/sys/auth/change", nil)
 	if err != nil {
 		return nil, errors.As(err)
 	}
@@ -137,7 +145,7 @@ func (auth *AuthClient) NewFileToken(ctx context.Context, authSpace, authFile st
 	params := url.Values{}
 	params.Add("sapce", authSpace)
 	params.Add("file", authFile)
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://"+auth.Host+"/sys/file/token?"+params.Encode(), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", auth.SchemeHost()+"/sys/file/token?"+params.Encode(), nil)
 	if err != nil {
 		return nil, errors.As(err)
 	}
@@ -162,7 +170,7 @@ func (auth *AuthClient) NewFileToken(ctx context.Context, authSpace, authFile st
 func (auth *AuthClient) DelayFileToken(ctx context.Context, authFile string) ([]byte, error) {
 	params := url.Values{}
 	params.Add("file", authFile)
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://"+auth.Host+"/sys/file/token", strings.NewReader(params.Encode()))
+	req, err := http.NewRequestWithContext(ctx, "POST", auth.SchemeHost()+"/sys/file/token", strings.NewReader(params.Encode()))
 	if err != nil {
 		return nil, errors.As(err)
 	}
@@ -187,7 +195,7 @@ func (auth *AuthClient) DelayFileToken(ctx context.Context, authFile string) ([]
 func (auth *AuthClient) DeleteFileToken(ctx context.Context, authFile string) ([]byte, error) {
 	params := url.Values{}
 	params.Add("file", authFile)
-	req, err := http.NewRequestWithContext(ctx, "DELETE", "https://"+auth.Host+"/sys/file/token?"+params.Encode(), nil)
+	req, err := http.NewRequestWithContext(ctx, "DELETE", auth.SchemeHost()+"/sys/file/token?"+params.Encode(), nil)
 	if err != nil {
 		return nil, errors.As(err)
 	}
