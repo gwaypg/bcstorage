@@ -44,6 +44,10 @@ func writeJson(w http.ResponseWriter, code int, obj interface{}) error {
 
 func (h *HttpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//log.Infof("from:%s,method:%s,path:%+v", r.RemoteAddr, r.Method, r.URL.Path)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	//w.Header().Add("Access-Control-Allow-Headers", "Content-Type,AccessToken,X-CSRF-Token, Authorization, Token")
+	//w.Header().Add("Access-Control-Allow-Credentials", "true")
+	w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 
 	// Cors
 	w.Header().Set("Access-Control-Allow-Origin", "*")
