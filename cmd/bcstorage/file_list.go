@@ -10,8 +10,8 @@ import (
 )
 
 func init() {
-	RegisterHandle("/file/stat", statHandler)
-	RegisterHandle("/file/list", listHandler)
+	RegisterFileHandle("/file/stat", statHandler)
+	RegisterFileHandle("/file/list", listHandler)
 }
 
 func statHandler(w http.ResponseWriter, r *http.Request) error {

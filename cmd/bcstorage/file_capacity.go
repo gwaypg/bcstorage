@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	RegisterHandle("/file/capacity", capacityHandler)
+	RegisterFileHandle("/file/capacity", capacityHandler)
 }
 
 func capacityHandler(w http.ResponseWriter, r *http.Request) error {

@@ -10,22 +10,22 @@ import (
 )
 
 func init() {
-	RegisterHandle("/check", checkHandler)
+	RegisterSysHandle("/sys/check", checkHandler)
 }
 
 func checkHandler(w http.ResponseWriter, r *http.Request) error {
-	_handler.checkCacheLk.Lock()
-	defer _handler.checkCacheLk.Unlock()
+	_sysHandler.checkCacheLk.Lock()
+	defer _sysHandler.checkCacheLk.Unlock()
 	now := time.Now()
-	if _handler.checkCache != nil && now.Sub(_handler.checkCache.createTime) < time.Minute {
-		return writeMsg(w, 200, _handler.checkCache.out)
+	if _sysHandler.checkCache != nil && now.Sub(_sysHandler.checkCache.createTime) < time.Minute {
+		return writeMsg(w, 200, _sysHandler.checkCache.out)
 	}
 
 	output, err := exec.CommandContext(context.TODO(), "zpool", "status", "-x").CombinedOutput()
 	if err != nil {
 		return errors.As(err)
 	}
-	_handler.checkCache = &CheckCache{
+	_sysHandler.checkCache = &CheckCache{
 		out:        string(output),
 		createTime: now,
 	}

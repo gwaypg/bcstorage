@@ -25,12 +25,12 @@ bcstorage sys status
 Http api
 ```shell
 # system status
-curl -k "https://127.0.0.1:1330/check"
+curl -k "https://127.0.0.1:1330/sys/check"
 
 # more pool
-curl -k "https://127.0.0.1:1330/check" # 对应openz-0
-curl -k "https://127.0.0.1:1340/check" # 对应openz-1
-curl -k "https://127.0.0.1:1350/check" # 对应openz-2
+curl -k "https://127.0.0.1:1330/sys/check" # 对应openz-0
+curl -k "https://127.0.0.1:1340/sys/check" # 对应openz-1
+curl -k "https://127.0.0.1:1350/sys/check" # 对应openz-2
 
 # more api
 https://github.com/gwaypg/bcstorage/blob/main/module/client/http_file.go#L81

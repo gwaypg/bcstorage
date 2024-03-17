@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	RegisterHandle("/file/truncate", truncateHandler)
+	RegisterFileHandle("/file/truncate", truncateHandler)
 }
 
 func truncateHandler(w http.ResponseWriter, r *http.Request) error {

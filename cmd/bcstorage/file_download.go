@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	RegisterHandle("/file/download", downloadHandler)
+	RegisterFileHandle("/file/download", downloadHandler)
 }
 
 func downloadHandler(w http.ResponseWriter, r *http.Request) error {

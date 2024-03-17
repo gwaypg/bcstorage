@@ -8,9 +8,9 @@ import (
 )
 
 func init() {
-	RegisterHandle("/sys/auth/add", addAuthHandler)
-	RegisterHandle("/sys/auth/reset", resetAuthHandler)
-	RegisterHandle("/sys/auth/change", changeAuthHandler)
+	RegisterSysHandle("/sys/auth/add", addAuthHandler)
+	RegisterSysHandle("/sys/auth/reset", resetAuthHandler)
+	RegisterSysHandle("/sys/auth/change", changeAuthHandler)
 }
 
 func addAuthHandler(w http.ResponseWriter, r *http.Request) error {

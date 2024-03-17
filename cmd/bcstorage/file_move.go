@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	RegisterHandle("/file/move", moveHandler)
+	RegisterFileHandle("/file/move", moveHandler)
 }
 
 func moveHandler(w http.ResponseWriter, r *http.Request) error {

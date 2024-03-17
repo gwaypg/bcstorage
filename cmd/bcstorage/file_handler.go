@@ -1,15 +1,15 @@
 package main
 
 import (
+	"fmt"
+	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
-)
 
-type CheckCache struct {
-	out        string
-	createTime time.Time
-}
+	"github.com/gwaylib/errors"
+)
 
 type FileToken struct {
 	spaceName  string
@@ -17,15 +17,12 @@ type FileToken struct {
 	createTime time.Time
 }
 
-type HttpHandler struct {
-	checkCache   *CheckCache
-	checkCacheLk sync.Mutex
-
+type FileHandler struct {
 	token   map[string]FileToken
 	tokenLk sync.Mutex
 }
 
-func (h *HttpHandler) gcToken() {
+func (h *FileHandler) gcToken() {
 	now := time.Now()
 	for key, val := range h.token {
 		if now.Sub(val.createTime) > 3*time.Hour {
@@ -33,7 +30,7 @@ func (h *HttpHandler) gcToken() {
 		}
 	}
 }
-func (h *HttpHandler) AddToken(spaceName, file, token string) {
+func (h *FileHandler) AddToken(spaceName, file, token string) {
 	h.tokenLk.Lock()
 	defer h.tokenLk.Unlock()
 	h.token[token] = FileToken{
@@ -42,7 +39,7 @@ func (h *HttpHandler) AddToken(spaceName, file, token string) {
 		createTime: time.Now(),
 	}
 }
-func (h *HttpHandler) DelayToken(token string) bool {
+func (h *FileHandler) DelayToken(token string) bool {
 	h.tokenLk.Lock()
 	defer h.tokenLk.Unlock()
 	t, ok := h.token[token]
@@ -54,13 +51,13 @@ func (h *HttpHandler) DelayToken(token string) bool {
 	return true
 }
 
-func (h *HttpHandler) DeleteToken(token string) {
+func (h *FileHandler) DeleteToken(token string) {
 	h.tokenLk.Lock()
 	defer h.tokenLk.Unlock()
 	delete(h.token, token)
 }
 
-func (h *HttpHandler) VerifyToken(space, file, token string) (FileToken, bool) {
+func (h *FileHandler) VerifyToken(space, file, token string) (FileToken, bool) {
 	h.tokenLk.Lock()
 	defer h.tokenLk.Unlock()
 	h.gcToken()
@@ -74,4 +71,70 @@ func (h *HttpHandler) VerifyToken(space, file, token string) (FileToken, bool) {
 	}
 	return t, true
 
+}
+
+func (h *FileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	//log.Infof("from:%s,method:%s,path:%+v", r.RemoteAddr, r.Method, r.URL.Path)
+
+	// Cors
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	if r.Method == "OPTIONS" {
+		writeMsg(w, 200, "OK")
+		return
+	}
+
+	// for public read
+	if strings.HasPrefix(r.URL.Path, "/public") {
+		//log.Infof("from:%s,method:%s,path:%+v", r.RemoteAddr, r.Method, r.URL.Path)
+		paths := strings.Split(r.URL.Path, "/")
+		if len(paths) < 4 {
+			writeMsg(w, 404, "error paths")
+			return
+		}
+		//log.Info("paths:", paths, paths[2])
+		userSpace, ok := _userMap.GetSpace(paths[2])
+		if !ok {
+			writeMsg(w, 404, fmt.Sprintf("no userspace '%s'", paths[2]))
+			return
+		}
+		if userSpace.Private {
+			writeMsg(w, 401, "unauth")
+			return
+		}
+		to, err := validHttpFilePath(paths[2], filepath.Join(paths[3:]...))
+		if err != nil {
+			//log.Info(errors.As(err))
+			writeMsg(w, 404, errors.As(err).Code())
+			return
+		}
+
+		log.Info("server file", to, r.URL.Path)
+
+		http.ServeFile(w, r, to)
+		return
+	}
+
+	// route handler
+	handle, ok := fileHandles[r.URL.Path]
+	if !ok {
+		writeMsg(w, 404, "Not found")
+		return
+	}
+
+	if err := handle(w, r); err != nil {
+		writeMsg(w, 500, err.Error())
+		return
+	}
+	return
+}
+
+var fileHandles = map[string]HandleFunc{}
+
+func RegisterFileHandle(path string, handle HandleFunc) {
+	_, ok := fileHandles[path]
+	if ok {
+		panic("already registered:" + path)
+	}
+	fileHandles[path] = handle
 }
