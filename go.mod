@@ -1,4 +1,4 @@
-module github.com/gwaycc/bcstorage
+module github.com/gwaypg/bcstorage
 
 go 1.19
 
