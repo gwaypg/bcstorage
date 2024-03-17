@@ -9,7 +9,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/gwaycc/bcstorage/module/client"
+	"github.com/gwaypg/bcstorage/module/client"
 )
 
 var uploadCmd = &cli.Command{

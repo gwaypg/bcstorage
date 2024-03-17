@@ -1,6 +1,6 @@
 User Case
 ```
-go install github.com/gwaycc/bcstorage/cmd/bcstorage
+go install github.com/gwaypg/bcstorage/cmd/bcstorage
 
 mkdir -p /data/zfs
 #bcstorage daemon --export-nfs=true &
@@ -33,7 +33,7 @@ curl -k "https://127.0.0.1:1340/sys/check" # 对应openz-1
 curl -k "https://127.0.0.1:1350/sys/check" # 对应openz-2
 
 # more api
-https://github.com/gwaycc/bcstorage/blob/main/module/client/http_file.go#L81
+https://github.com/gwaypg/bcstorage/blob/main/module/client/http_file.go#L81
 ```
 
 Reset password
