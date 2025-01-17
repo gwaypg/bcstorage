@@ -103,22 +103,22 @@ func (u *UserMap) AddSpace(space UserSpace) error {
 	}
 	return PutLevelDB(fmt.Sprintf(_leveldb_prefix_space, space.Name), &space)
 }
-func (u *UserMap) GetSpace(name string) (UserSpace, bool) {
+func (u *UserMap) GetSpace(name string) (*UserSpace, error) {
 	u.lk.Lock()
 	defer u.lk.Unlock()
 	space, ok := u.Space[name]
 	if !ok {
 		if err := ScanLevelDB(fmt.Sprintf(_leveldb_prefix_space, name), &space); err != nil {
-			return UserSpace{}, false
+			return nil, errors.ErrNoData.As(name)
 		}
 		u.Space[name] = space
 	}
-	return space, true
+	return &space, nil
 }
 func (u *UserMap) SpacePath(spaceName string) (string, error) {
-	space, ok := u.GetSpace(spaceName)
-	if !ok {
-		return "", errors.ErrNoData.As(spaceName)
+	space, err := u.GetSpace(spaceName)
+	if err != nil {
+		return "", errors.As(err)
 	}
 	return filepath.Join(_rootPathFlag, space.Name), nil
 }
@@ -143,9 +143,9 @@ func (u *UserMap) UpdateAuth(auth UserAuth) error {
 }
 
 func validHttpFilePath(spaceName, file string) (string, error) {
-	space, ok := _userMap.GetSpace(spaceName)
-	if !ok {
-		return "", errors.New("space not found").As(spaceName)
+	space, err := _userMap.GetSpace(spaceName)
+	if err != nil {
+		return "", errors.As(err)
 	}
 	rootPath := _rootPathFlag
 	absPath, err := filepath.Abs(filepath.Join(rootPath, space.Name, file))

@@ -93,9 +93,13 @@ func (h *FileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		//log.Info("paths:", paths, paths[2])
-		userSpace, ok := _userMap.GetSpace(paths[2])
-		if !ok {
-			writeMsg(w, 404, fmt.Sprintf("no userspace '%s'", paths[2]))
+		userSpace, err := _userMap.GetSpace(paths[2])
+		if err != nil {
+			if errors.ErrNoData.Equal(err) {
+				writeMsg(w, 404, fmt.Sprintf("no userspace '%s'", paths[2]))
+				return
+			}
+			writeMsg(w, 500, err.Error())
 			return
 		}
 		if userSpace.Private {

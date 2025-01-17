@@ -27,7 +27,10 @@ func addAuthHandler(w http.ResponseWriter, r *http.Request) error {
 	spaceName := r.FormValue("space")
 
 	// checking space
-	if _, ok := _userMap.GetSpace(spaceName); !ok {
+	if _, err := _userMap.GetSpace(spaceName); err != nil {
+		if !errors.ErrNoData.Equal(err) {
+			return errors.As(err)
+		}
 		space := UserSpace{
 			Name: spaceName,
 			// TODO: more
