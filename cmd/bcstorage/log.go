@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/gwaylib/log/logger"
 	"github.com/gwaylib/log/logger/adapter/stdio"
@@ -12,9 +13,9 @@ var log *logger.Logger
 
 func init() {
 	level := proto.LevelInfo
-	if os.Getenv("LOTUS_FUSE_DEBUG") == "1" {
-		level = proto.LevelDebug
+	logLevel, err := strconv.Atoi(os.Getenv("BCSTORAGE_LOG_LEVEL"))
+	if err == nil {
+		level = proto.Level(logLevel)
 	}
-	log = logger.New(&proto.Context{"lotus-storage", "1.0.0", logger.HostName}, "server", level, stdio.New(os.Stdout, os.Stderr))
-
+	log = logger.New(&proto.Context{"bc-storage", "1.0.0", logger.HostName}, "server", level, stdio.New(os.Stdout, os.Stderr))
 }

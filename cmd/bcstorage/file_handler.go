@@ -96,6 +96,7 @@ func (h *FileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		userSpace, err := _userMap.GetSpace(paths[2])
 		if err != nil {
 			if errors.ErrNoData.Equal(err) {
+				log.Debug(errors.As(err))
 				writeMsg(w, 404, fmt.Sprintf("no userspace '%s'", paths[2]))
 				return
 			}
